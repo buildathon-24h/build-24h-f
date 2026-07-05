@@ -45,7 +45,7 @@ const data = {
     },
     {
       title: "Documentos",
-      url: "#",
+      url: "/documents",
       icon: (
         <FolderIcon
         />

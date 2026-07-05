@@ -93,3 +93,67 @@ export function uploadDocument<T = unknown>(file: File): Promise<T> {
   formData.append('file', file)
   return apiFetch<T>('/documents', { method: 'POST', body: formData })
 }
+
+/**
+ * POST /documents with real upload progress. Uses XHR (fetch has no upload
+ * progress events) so drag-and-drop UIs can show an accurate percentage.
+ */
+export async function uploadDocumentWithProgress(
+  file: File,
+  onProgress?: (percent: number) => void
+): Promise<unknown> {
+  if (!API_URL) {
+    throw new ApiError(0, 'NEXT_PUBLIC_API_URL is not configured')
+  }
+
+  const token = await getAccessToken()
+
+  return new Promise((resolve, reject) => {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `${API_URL}/documents`)
+    if (token) {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    }
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        onProgress?.(Math.round((event.loaded / event.total) * 100))
+      }
+    }
+
+    xhr.onload = () => {
+      const contentType = xhr.getResponseHeader('content-type') ?? ''
+      let payload: unknown = xhr.responseText
+      if (contentType.includes('application/json')) {
+        try {
+          payload = JSON.parse(xhr.responseText)
+        } catch {
+          // Gateway sent malformed JSON; fall back to the raw text.
+        }
+      }
+
+      if (xhr.status === 401) {
+        void handleUnauthorized()
+        reject(new ApiError(401, 'Session expired, please sign in again'))
+        return
+      }
+
+      if (xhr.status < 200 || xhr.status >= 300) {
+        const message =
+          typeof payload === 'string'
+            ? payload
+            : ((payload as { message?: string })?.message ?? 'Upload failed')
+        reject(new ApiError(xhr.status, message, payload))
+        return
+      }
+
+      resolve(payload)
+    }
+
+    xhr.onerror = () => reject(new ApiError(0, 'Network error while uploading'))
+    xhr.send(formData)
+  })
+}
