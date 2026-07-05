@@ -3,8 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChatStatus } from 'ai'
 import { MessageSquareTextIcon, AudioLinesIcon, LockIcon } from 'lucide-react'
+import { toast } from 'sonner'
 import type { Agent } from '@/lib/agents'
-import { getMockReply, streamMockReply } from '@/lib/mock-replies'
+import { sendChat, ApiError } from '@/lib/api'
+import { extractChatReply } from '@/lib/chat-response'
+import { streamMockReply } from '@/lib/mock-replies'
 import { useSpeech } from '@/hooks/use-speech'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -128,14 +131,26 @@ export function AgentStage({
       ])
       setStatus('submitted')
 
-      const reply = getMockReply(agent, prompt)
-      if (isVoice) {
-        runVoiceReply(reply)
-      } else {
-        await runTextStream(reply)
+      try {
+        const data = await sendChat(prompt)
+        const reply = extractChatReply(data)
+
+        if (isVoice) {
+          runVoiceReply(reply)
+        } else {
+          await runTextStream(reply)
+        }
+      } catch (error) {
+        // 401 is handled globally (sign-out + redirect).
+        if (!(error instanceof ApiError && error.status === 401)) {
+          const errMessage =
+            error instanceof Error ? error.message : 'No se pudo enviar el mensaje'
+          toast.error(errMessage)
+        }
+        setStatus('ready')
       }
     },
-    [agent, isVoice, isBusy, cancel, runTextStream, runVoiceReply]
+    [isVoice, isBusy, cancel, runTextStream, runVoiceReply]
   )
 
   function switchMode(next: Mode) {

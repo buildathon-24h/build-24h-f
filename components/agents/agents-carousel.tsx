@@ -1,10 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useRef } from 'react'
-import { LockIcon } from 'lucide-react'
 import type { Agent } from '@/lib/agents'
 import { cn } from '@/lib/utils'
-import { AgentOrb } from '@/components/agents/agent-orb'
+import { Orb, type AgentState } from '@/components/orbs/orb'
 
 interface AgentsCarouselProps {
   agents: Agent[]
@@ -21,7 +20,7 @@ export function AgentsCarousel({
   speaking = false,
 }: AgentsCarouselProps) {
   const scrollerRef = useRef<HTMLDivElement>(null)
-  const activeRef = useRef<HTMLButtonElement>(null)
+  const selectedRef = useRef<HTMLButtonElement>(null)
 
   // Place the active agent in the middle, coming-soon ones flanking the sides.
   const ordered = useMemo(() => {
@@ -31,15 +30,15 @@ export function AgentsCarousel({
     return [...soon.slice(0, half), ...active, ...soon.slice(half)]
   }, [agents])
 
-  // Center the active orb on mount.
+  // Keep the selected orb centered as users preview departments.
   useEffect(() => {
-    activeRef.current?.scrollIntoView({ inline: 'center', block: 'nearest' })
-  }, [])
+    selectedRef.current?.scrollIntoView({ inline: 'center', block: 'nearest' })
+  }, [selectedId])
 
   return (
     <div
       ref={scrollerRef}
-      className="flex items-center justify-center gap-6 overflow-x-auto px-6 py-4 [scrollbar-width:none] sm:gap-10 [&::-webkit-scrollbar]:hidden"
+      className="flex items-center justify-center gap-3 overflow-x-auto px-3 py-4 [scrollbar-width:none] sm:gap-5 lg:gap-7 [&::-webkit-scrollbar]:hidden"
     >
       {ordered.map((agent) => {
         const isSelected = agent.id === selectedId
@@ -47,30 +46,33 @@ export function AgentsCarousel({
         return (
           <button
             key={agent.id}
-            ref={isActive ? activeRef : undefined}
+            ref={isSelected ? selectedRef : undefined}
             type="button"
             onClick={() => onSelect(agent.id)}
             aria-pressed={isSelected}
-            aria-disabled={!isActive}
             className={cn(
-              'group flex shrink-0 flex-col items-center gap-2 rounded-3xl p-2 outline-none transition-all duration-300',
-              isActive ? 'cursor-pointer' : 'cursor-default',
-              isSelected && 'scale-105'
+              'group flex shrink-0 flex-col items-center gap-2 rounded-3xl p-2 outline-none transition-colors duration-300',
+              'cursor-pointer'
             )}
           >
             <div className="relative">
-              <AgentOrb
-                gradient={agent.gradient}
-                size={isActive ? (isSelected ? 148 : 128) : 72}
-                speaking={isSelected && isActive && speaking}
-                muted={!isActive}
-              />
-              {!isActive && (
-                <span className="absolute inset-0 flex items-center justify-center">
-                  <LockIcon className="size-4 text-white/70" />
-                </span>
-              )}
-              {isSelected && isActive && (
+              <div
+                className={cn(
+                  'relative transition-opacity duration-300',
+                  isSelected ? 'opacity-100' : 'opacity-65'
+                )}
+                style={{ width: isSelected ? 148 : 82, height: isSelected ? 148 : 82 }}
+              >
+                <Orb
+                  className="h-full w-full"
+                  colors={agent.gradient}
+                  resizeDebounce={200}
+                  agentState={
+                    isSelected && speaking ? ('talking' as AgentState) : null
+                  }
+                />
+              </div>
+              {isSelected && (
                 <span className="absolute -inset-1 rounded-full ring-2 ring-primary/40" />
               )}
             </div>
@@ -78,7 +80,7 @@ export function AgentsCarousel({
               <div
                 className={cn(
                   'text-xs font-medium sm:text-sm',
-                  isActive ? 'text-foreground' : 'text-muted-foreground/60'
+                  isSelected ? 'text-foreground' : 'text-muted-foreground/60'
                 )}
               >
                 {agent.department}

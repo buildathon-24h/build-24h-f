@@ -3,7 +3,7 @@
 import * as React from "react"
 
 import { NavMain } from "@/components/nav-main"
-// import { NavDocuments } from "@/components/nav-documents"
+import { NavDocuments } from "@/components/nav-documents"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
 import {
@@ -16,7 +16,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { MarvaIsotype } from "@/components/marva-isotype"
-import { LayoutDashboardIcon, MessageSquareIcon, CameraIcon, FileTextIcon, Settings2Icon, CircleHelpIcon, SearchIcon } from "lucide-react"
+import { LayoutDashboardIcon, MessageSquareIcon, CameraIcon, FileTextIcon, Settings2Icon, CircleHelpIcon, SearchIcon, FolderIcon } from "lucide-react"
 
 const data = {
   navMain: [
@@ -44,14 +44,14 @@ const data = {
     //     />
     //   ),
     // },
-    // {
-    //   title: "Documentos",
-    //   url: "#",
-    //   icon: (
-    //     <FolderIcon
-    //     />
-    //   ),
-    // },
+    {
+      title: "Documentos",
+      url: "/documents",
+      icon: (
+        <FolderIcon
+        />
+      ),
+    },
     // {
     //   title: "Equipo",
     //   url: "#",
@@ -149,24 +149,7 @@ const data = {
   //     name: "Data Library",
   //     url: "#",
   //     icon: (
-  //       <DatabaseIcon
-  //       />
-  //     ),
-  //   },
-  //   {
-  //     name: "Reports",
-  //     url: "#",
-  //     icon: (
-  //       <FileChartColumnIcon
-  //       />
-  //     ),
-  //   },
-  //   {
-  //     name: "Word Assistant",
-  //     url: "#",
-  //     icon: (
-  //       <FileIcon
-  //       />
+  //       <FolderIcon />
   //     ),
   //   },
   // ],

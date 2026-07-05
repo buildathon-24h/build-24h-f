@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "agents": {
+      "source": "elevenlabs/skills",
+      "sourceType": "github",
+      "skillPath": "agents/SKILL.md",
+      "computedHash": "c1c6616a7a0a935c1ec5f9635b0286b4ae121f12490f8ed60aefb91e32272b2d"
+    },
     "supabase": {
       "source": "supabase/agent-skills",
       "sourceType": "github",

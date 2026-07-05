@@ -1,6 +1,13 @@
-import { redirect } from 'next/navigation'
+import type { Metadata } from "next"
+
+import { LandingPage } from "@/components/landing/landing-page"
+
+export const metadata: Metadata = {
+  title: "Know.ly | Agent-ready knowledge systems",
+  description:
+    "Turn scattered operating knowledge into structured context for focused, trustworthy agents.",
+}
 
 export default function Page() {
-  // Entry point: middleware gates auth, so land straight on the dashboard.
-  redirect('/dashboard')
+  return <LandingPage />
 }

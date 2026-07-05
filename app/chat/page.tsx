@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ArrowLeft, Send, Loader2, Bot, User } from 'lucide-react'
 import { toast } from 'sonner'
 import { sendChat, ApiError } from '@/lib/api'
+import { extractChatReply } from '@/lib/chat-response'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
@@ -13,19 +14,6 @@ interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
-}
-
-/** The gateway proxies n8n, whose payload shape is arbitrary. Best-effort extract. */
-function extractReply(data: unknown): string {
-  if (typeof data === 'string') return data
-  if (data && typeof data === 'object') {
-    const record = data as Record<string, unknown>
-    for (const key of ['output', 'text', 'reply', 'message', 'answer', 'response']) {
-      if (typeof record[key] === 'string') return record[key] as string
-    }
-    return JSON.stringify(data, null, 2)
-  }
-  return String(data)
 }
 
 export default function ChatPage() {
@@ -55,7 +43,11 @@ export default function ChatPage() {
       const data = await sendChat(prompt)
       setMessages((prev) => [
         ...prev,
-        { id: crypto.randomUUID(), role: 'assistant', content: extractReply(data) },
+        {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: extractChatReply(data),
+        },
       ])
     } catch (error) {
       // 401 is handled globally (sign-out + redirect); surface everything else.

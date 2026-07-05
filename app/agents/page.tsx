@@ -34,10 +34,10 @@ export default function AgentsPage() {
       <SidebarInset>
         <SiteHeader title="Agents" />
         <div
-          className="relative flex min-h-[calc(100svh-var(--header-height))] flex-1 flex-col transition-[background] duration-700 ease-in-out"
+          className="relative flex  flex-1 flex-col"
           style={agentAmbientStyle(selected.gradient)}
         >
-          <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-6 lg:px-6">
+          <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-6 lg:px-6">
             <AgentsCarousel
               agents={agents}
               selectedId={selectedId}
