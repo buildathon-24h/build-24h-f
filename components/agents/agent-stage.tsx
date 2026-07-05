@@ -26,11 +26,14 @@ import {
   PromptInput,
   PromptInputBody,
   PromptInputFooter,
+  PromptInputProvider,
   PromptInputSubmit,
   PromptInputTextarea,
   PromptInputTools,
   type PromptInputMessage,
+  usePromptInputController,
 } from '@/components/ai-elements/prompt-input'
+import { SpeechInput } from '@/components/ai-elements/speech-input'
 
 type Mode = 'text' | 'voice'
 
@@ -56,6 +59,10 @@ export function AgentStage({
 
   const isVoice = mode === 'voice'
   const isBusy = status === 'submitted' || status === 'streaming'
+  const lastAssistantMessage = messages
+    .slice()
+    .reverse()
+    .find((message) => message.role === 'assistant')
 
   useEffect(
     () => () => {
@@ -98,19 +105,13 @@ export function AgentStage({
     setStatus('ready')
   }, [])
 
-  const runVoiceReply = useCallback(
+  const speakReply = useCallback(
     (reply: string) => {
       setCaption('')
-      setStatus('streaming')
-      speak(reply, {
+      void speak(reply, {
         onBoundary: (spoken) => setCaption(spoken),
         onEnd: () => {
           setCaption(reply)
-          setMessages((prev) => [
-            ...prev,
-            { id: crypto.randomUUID(), role: 'assistant', content: reply },
-          ])
-          setStatus('ready')
         },
       })
     },
@@ -136,10 +137,9 @@ export function AgentStage({
         const reply = extractChatReply(data)
 
         if (isVoice) {
-          runVoiceReply(reply)
-        } else {
-          await runTextStream(reply)
+          speakReply(reply)
         }
+        await runTextStream(reply)
       } catch (error) {
         // 401 is handled globally (sign-out + redirect).
         if (!(error instanceof ApiError && error.status === 401)) {
@@ -150,7 +150,7 @@ export function AgentStage({
         setStatus('ready')
       }
     },
-    [isVoice, isBusy, cancel, runTextStream, runVoiceReply]
+    [isVoice, isBusy, cancel, runTextStream, speakReply]
   )
 
   function switchMode(next: Mode) {
@@ -214,9 +214,8 @@ export function AgentStage({
         </div>
       </div>
 
-      {/* Main content area */}
-      {isVoice ? (
-        <div className="flex min-h-[38vh] w-full flex-col items-center justify-center px-2">
+      {isVoice && (
+        <div className="flex w-full flex-col items-center justify-center px-2">
           <div className="w-full max-w-lg rounded-2xl border border-border/50 bg-background/40 p-5 text-center text-sm leading-relaxed backdrop-blur-sm">
             {caption ? (
               <span>{caption}</span>
@@ -227,26 +226,26 @@ export function AgentStage({
             )}
           </div>
         </div>
-      ) : (
-        <div className="flex min-h-[38vh] w-full flex-col overflow-hidden rounded-2xl border border-border/50 bg-background/30 backdrop-blur-sm">
-          <Conversation className="min-h-[38vh]">
-            <ConversationContent className="min-h-[32vh]">
-              {messages.map((m) => (
-                <Message key={m.id} from={m.role}>
-                  <MessageContent>
-                    {m.role === 'assistant' ? (
-                      <MessageResponse>{m.content}</MessageResponse>
-                    ) : (
-                      m.content
-                    )}
-                  </MessageContent>
-                </Message>
-              ))}
-            </ConversationContent>
-            <ConversationScrollButton />
-          </Conversation>
-        </div>
       )}
+
+      <div className="flex min-h-[38vh] w-full flex-col overflow-hidden rounded-2xl border border-border/50 bg-background/30 backdrop-blur-sm">
+        <Conversation className="min-h-[38vh]">
+          <ConversationContent className="min-h-[32vh]">
+            {messages.map((m) => (
+              <Message key={m.id} from={m.role}>
+                <MessageContent>
+                  {m.role === 'assistant' ? (
+                    <MessageResponse>{m.content}</MessageResponse>
+                  ) : (
+                    m.content
+                  )}
+                </MessageContent>
+              </Message>
+            ))}
+          </ConversationContent>
+          <ConversationScrollButton />
+        </Conversation>
+      </div>
 
       {/* Suggestions */}
       {messages.length === 0 && !isBusy && agent.suggestions.length > 0 && (
@@ -265,22 +264,90 @@ export function AgentStage({
         </div>
       )}
 
-      <PromptInput onSubmit={handleSubmit} className="w-full">
-        <PromptInputBody>
-          <PromptInputTextarea
-            placeholder={`Escribile a ${agent.department}...`}
-          />
-        </PromptInputBody>
-        <PromptInputFooter>
-          <PromptInputTools>
-            <span className="px-1 text-xs text-muted-foreground">
-              {isVoice ? 'Respuesta hablada + subtítulos' : 'Respuesta en texto'}
-            </span>
-          </PromptInputTools>
-          <PromptInputSubmit status={status} />
-        </PromptInputFooter>
-      </PromptInput>
+      <PromptInputProvider>
+        <PromptInput onSubmit={handleSubmit} className="w-full">
+          <PromptInputBody>
+            <PromptInputTextarea
+              placeholder={`Escribile a ${agent.department}...`}
+            />
+          </PromptInputBody>
+          <PromptInputFooter>
+            <PromptInputTools>
+              <AgentSpeechInput disabled={isBusy} />
+              {lastAssistantMessage && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={speaking}
+                  onClick={() => speakReply(lastAssistantMessage.content)}
+                >
+                  Escuchar
+                </Button>
+              )}
+              <span className="px-1 text-xs text-muted-foreground">
+                {isVoice
+                  ? 'Dictado + respuesta hablada con ElevenLabs'
+                  : 'Respuesta en texto'}
+              </span>
+            </PromptInputTools>
+            <PromptInputSubmit status={status} />
+          </PromptInputFooter>
+        </PromptInput>
+      </PromptInputProvider>
     </div>
+  )
+}
+
+function AgentSpeechInput({ disabled }: { disabled?: boolean }) {
+  const { textInput } = usePromptInputController()
+
+  const handleTranscription = useCallback(
+    (text: string) => {
+      const transcript = text.trim()
+      if (!transcript) return
+
+      textInput.setInput(
+        textInput.value ? `${textInput.value.trim()} ${transcript}` : transcript
+      )
+    },
+    [textInput]
+  )
+
+  const handleAudioRecorded = useCallback(async (audioBlob: Blob) => {
+    const formData = new FormData()
+    formData.append('audio', audioBlob, 'prompt.webm')
+    formData.append('languageCode', 'es')
+
+    const response = await fetch('/api/elevenlabs/transcribe', {
+      method: 'POST',
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string
+      } | null
+      const message = payload?.error ?? 'No se pudo transcribir el audio'
+      toast.error(message)
+      return ''
+    }
+
+    const payload = (await response.json()) as { transcript?: string }
+    return payload.transcript ?? ''
+  }, [])
+
+  return (
+    <SpeechInput
+      aria-label="Dictar prompt con ElevenLabs"
+      disabled={disabled}
+      lang="es"
+      preferMediaRecorder
+      onAudioRecorded={handleAudioRecorded}
+      onTranscriptionChange={handleTranscription}
+      size="icon-sm"
+      variant="ghost"
+    />
   )
 }
 

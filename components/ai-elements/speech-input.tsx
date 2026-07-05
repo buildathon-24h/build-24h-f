@@ -68,12 +68,20 @@ export type SpeechInputProps = ComponentProps<typeof Button> & {
    * Return the transcribed text, which will be passed to onTranscriptionChange.
    */
   onAudioRecorded?: (audioBlob: Blob) => Promise<string>;
+  /** Forces audio upload transcription instead of the browser Web Speech API. */
+  preferMediaRecorder?: boolean;
   lang?: string;
 };
 
-const detectSpeechInputMode = (): SpeechInputMode => {
+const detectSpeechInputMode = (
+  preferMediaRecorder = false
+): SpeechInputMode => {
   if (typeof window === "undefined") {
     return "none";
+  }
+
+  if (preferMediaRecorder && "MediaRecorder" in window && "mediaDevices" in navigator) {
+    return "media-recorder";
   }
 
   if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
@@ -91,12 +99,15 @@ export const SpeechInput = ({
   className,
   onTranscriptionChange,
   onAudioRecorded,
+  preferMediaRecorder = false,
   lang = "en-US",
   ...props
 }: SpeechInputProps) => {
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [mode] = useState<SpeechInputMode>(detectSpeechInputMode);
+  const [mode] = useState<SpeechInputMode>(() =>
+    detectSpeechInputMode(preferMediaRecorder)
+  );
   const [isRecognitionReady, setIsRecognitionReady] = useState(
     () => detectSpeechInputMode() !== "speech-recognition"
   );

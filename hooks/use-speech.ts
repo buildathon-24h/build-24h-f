@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 export interface SpeakOptions {
   /** Called with the progressively spoken text (for synced captions). */
@@ -8,99 +8,103 @@ export interface SpeakOptions {
   onEnd?: () => void
 }
 
-function getSpeechSupportedSnapshot() {
-  return typeof window !== 'undefined' && 'speechSynthesis' in window
-}
-
-function getServerSpeechSupportedSnapshot() {
-  return false
-}
-
-function subscribeToSpeechSupport(onStoreChange: () => void) {
-  if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-    return () => {}
-  }
-
-  window.speechSynthesis.addEventListener('voiceschanged', onStoreChange)
-  return () => {
-    window.speechSynthesis.removeEventListener('voiceschanged', onStoreChange)
-  }
-}
-
 /**
- * Thin wrapper around the browser SpeechSynthesis API used as a stand-in for
- * a real TTS provider (e.g. ElevenLabs). Prefers a Spanish voice when present
- * and emits progressive caption text via `onBoundary`.
+ * ElevenLabs-backed TTS hook. The browser only receives generated audio; the
+ * API key stays server-side in `/api/elevenlabs/tts`.
  */
 export function useSpeech() {
-  const supported = useSyncExternalStore(
-    subscribeToSpeechSupport,
-    getSpeechSupportedSnapshot,
-    getServerSpeechSupportedSnapshot
-  )
   const [speaking, setSpeaking] = useState(false)
-  const voiceRef = useRef<SpeechSynthesisVoice | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const objectUrlRef = useRef<string | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
+
+  const cleanupAudio = useCallback(() => {
+    audioRef.current?.pause()
+    audioRef.current = null
+
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current)
+      objectUrlRef.current = null
+    }
+  }, [])
 
   useEffect(() => {
-    if (!supported) {
-      return
-    }
-
-    const pickVoice = () => {
-      const voices = window.speechSynthesis.getVoices()
-      voiceRef.current =
-        voices.find((v) => v.lang.toLowerCase().startsWith('es')) ??
-        voices[0] ??
-        null
-    }
-
-    pickVoice()
-    window.speechSynthesis.addEventListener('voiceschanged', pickVoice)
     return () => {
-      window.speechSynthesis.removeEventListener('voiceschanged', pickVoice)
-      window.speechSynthesis.cancel()
+      abortRef.current?.abort()
+      cleanupAudio()
     }
-  }, [supported])
+  }, [cleanupAudio])
 
   const cancel = useCallback(() => {
-    if (!supported) return
-    window.speechSynthesis.cancel()
+    abortRef.current?.abort()
+    abortRef.current = null
+    cleanupAudio()
     setSpeaking(false)
-  }, [supported])
+  }, [cleanupAudio])
 
   const speak = useCallback(
-    (text: string, options?: SpeakOptions) => {
-      if (!supported || !text.trim()) {
-        // No TTS available: emit the full text once so captions still show.
+    async (text: string, options?: SpeakOptions) => {
+      const trimmed = text.trim()
+
+      if (!trimmed) {
         options?.onBoundary?.(text)
         options?.onEnd?.()
         return
       }
-      window.speechSynthesis.cancel()
 
-      const utterance = new SpeechSynthesisUtterance(text)
-      utterance.lang = voiceRef.current?.lang ?? 'es-ES'
-      if (voiceRef.current) utterance.voice = voiceRef.current
-      utterance.rate = 1
-      utterance.pitch = 1
-      utterance.onstart = () => setSpeaking(true)
-      utterance.onboundary = (event) => {
-        options?.onBoundary?.(text.slice(0, event.charIndex + 1))
-      }
-      utterance.onend = () => {
-        setSpeaking(false)
-        options?.onBoundary?.(text)
-        options?.onEnd?.()
-      }
-      utterance.onerror = () => {
-        setSpeaking(false)
-        options?.onEnd?.()
-      }
+      cancel()
 
-      window.speechSynthesis.speak(utterance)
+      const controller = new AbortController()
+      abortRef.current = controller
+
+      try {
+        const response = await fetch('/api/elevenlabs/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: trimmed }),
+          signal: controller.signal,
+        })
+
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as {
+            error?: string
+          } | null
+          throw new Error(payload?.error ?? 'No se pudo generar audio')
+        }
+
+        const blob = await response.blob()
+        const objectUrl = URL.createObjectURL(blob)
+        const audio = new Audio(objectUrl)
+
+        objectUrlRef.current = objectUrl
+        audioRef.current = audio
+
+        audio.onplay = () => {
+          setSpeaking(true)
+          options?.onBoundary?.(trimmed)
+        }
+        audio.onended = () => {
+          setSpeaking(false)
+          cleanupAudio()
+          options?.onBoundary?.(trimmed)
+          options?.onEnd?.()
+        }
+        audio.onerror = () => {
+          setSpeaking(false)
+          cleanupAudio()
+          options?.onEnd?.()
+        }
+
+        await audio.play()
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+          options?.onEnd?.()
+        }
+        setSpeaking(false)
+      }
     },
-    [supported]
+    [cancel, cleanupAudio]
   )
 
-  return { supported, speaking, speak, cancel }
+  return { supported: true, speaking, speak, cancel }
 }
