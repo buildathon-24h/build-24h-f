@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Leftover from the previous Nuxt scaffold:
+    ".nuxt/**",
   ]),
 ]);
 
