@@ -3,7 +3,8 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { SparklesIcon, Loader2Icon } from "lucide-react"
+import { MarvaIsotype } from "@/components/marva-isotype"
+import { Loader2Icon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
@@ -61,10 +62,8 @@ export function LoginForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <form onSubmit={handleSubmit}>
         <FieldGroup>
-          <div className="flex flex-col items-center gap-2 text-center">
-            <div className="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-              <SparklesIcon className="size-6" />
-            </div>
+          <div className="flex flex-col items-center gap-3 text-center">
+            <MarvaIsotype size={64} />
             <h1 className="text-xl font-bold">Bienvenido a Knowly</h1>
             <FieldDescription>
               Acceso exclusivo para usuarios registrados.

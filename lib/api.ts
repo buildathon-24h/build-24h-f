@@ -1,4 +1,5 @@
 import { createClient } from './client'
+import { isSupabaseConfigured } from './supabase-config'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -22,6 +23,10 @@ export class ApiError extends Error {
  * `getSession()` returns the auto-refreshed token, so headers never go stale.
  */
 async function getAccessToken(): Promise<string | null> {
+  if (!isSupabaseConfigured()) {
+    return null
+  }
+
   const supabase = createClient()
   const { data } = await supabase.auth.getSession()
   return data.session?.access_token ?? null
@@ -32,6 +37,10 @@ async function getAccessToken(): Promise<string | null> {
  * bounce the user back to the auth entry point.
  */
 async function handleUnauthorized(): Promise<void> {
+  if (!isSupabaseConfigured()) {
+    return
+  }
+
   const supabase = createClient()
   await supabase.auth.signOut()
   if (typeof window !== 'undefined') {

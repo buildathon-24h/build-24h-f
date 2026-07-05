@@ -1,11 +1,30 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 export interface SpeakOptions {
   /** Called with the progressively spoken text (for synced captions). */
   onBoundary?: (spokenText: string) => void
   onEnd?: () => void
+}
+
+function getSpeechSupportedSnapshot() {
+  return typeof window !== 'undefined' && 'speechSynthesis' in window
+}
+
+function getServerSpeechSupportedSnapshot() {
+  return false
+}
+
+function subscribeToSpeechSupport(onStoreChange: () => void) {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+    return () => {}
+  }
+
+  window.speechSynthesis.addEventListener('voiceschanged', onStoreChange)
+  return () => {
+    window.speechSynthesis.removeEventListener('voiceschanged', onStoreChange)
+  }
 }
 
 /**
@@ -14,15 +33,18 @@ export interface SpeakOptions {
  * and emits progressive caption text via `onBoundary`.
  */
 export function useSpeech() {
-  const [supported, setSupported] = useState(false)
+  const supported = useSyncExternalStore(
+    subscribeToSpeechSupport,
+    getSpeechSupportedSnapshot,
+    getServerSpeechSupportedSnapshot
+  )
   const [speaking, setSpeaking] = useState(false)
   const voiceRef = useRef<SpeechSynthesisVoice | null>(null)
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+    if (!supported) {
       return
     }
-    setSupported(true)
 
     const pickVoice = () => {
       const voices = window.speechSynthesis.getVoices()
@@ -38,7 +60,7 @@ export function useSpeech() {
       window.speechSynthesis.removeEventListener('voiceschanged', pickVoice)
       window.speechSynthesis.cancel()
     }
-  }, [])
+  }, [supported])
 
   const cancel = useCallback(() => {
     if (!supported) return
