@@ -9,7 +9,9 @@ import {
   type ReactNode,
 } from 'react'
 import type { User } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/client'
+import { isSupabaseConfigured } from '@/lib/supabase-config'
 
 export interface AuthContextValue {
   user: User | null
@@ -24,11 +26,21 @@ export const AuthContext = createContext<AuthContextValue | undefined>(undefined
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   // Single browser-side client instance to avoid duplicate GoTrue listeners.
-  const supabase = useMemo(() => createClient(), [])
+  const supabase = useMemo<SupabaseClient | null>(() => {
+    if (!isSupabaseConfigured()) {
+      return null
+    }
+
+    return createClient()
+  }, [])
   const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(isSupabaseConfigured)
 
   useEffect(() => {
+    if (!supabase) {
+      return
+    }
+
     let active = true
 
     supabase.auth.getUser().then(({ data }) => {
@@ -51,6 +63,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (email: string, password: string) => {
+      if (!supabase) {
+        throw new Error('Supabase is not configured')
+      }
+
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -61,6 +77,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   const logout = useCallback(async () => {
+    if (!supabase) {
+      return
+    }
+
     await supabase.auth.signOut()
   }, [supabase])
 

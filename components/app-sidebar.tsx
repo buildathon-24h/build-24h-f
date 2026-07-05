@@ -2,8 +2,8 @@
 
 import * as React from "react"
 
-import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
+// import { NavDocuments } from "@/components/nav-documents"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
 import {
@@ -15,7 +15,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { LayoutDashboardIcon, MessageSquareIcon, ChartBarIcon, FolderIcon, UsersIcon, CameraIcon, FileTextIcon, Settings2Icon, CircleHelpIcon, SearchIcon, DatabaseIcon, FileChartColumnIcon, FileIcon, SparklesIcon } from "lucide-react"
+import { MarvaIsotype } from "@/components/marva-isotype"
+import { LayoutDashboardIcon, MessageSquareIcon, CameraIcon, FileTextIcon, Settings2Icon, CircleHelpIcon, SearchIcon } from "lucide-react"
 
 const data = {
   navMain: [
@@ -35,30 +36,30 @@ const data = {
         />
       ),
     },
-    {
-      title: "Analítica",
-      url: "#",
-      icon: (
-        <ChartBarIcon
-        />
-      ),
-    },
-    {
-      title: "Documentos",
-      url: "#",
-      icon: (
-        <FolderIcon
-        />
-      ),
-    },
-    {
-      title: "Equipo",
-      url: "#",
-      icon: (
-        <UsersIcon
-        />
-      ),
-    },
+    // {
+    //   title: "Analítica",
+    //   url: "#",
+    //   icon: (
+    //     <ChartBarIcon
+    //     />
+    //   ),
+    // },
+    // {
+    //   title: "Documentos",
+    //   url: "#",
+    //   icon: (
+    //     <FolderIcon
+    //     />
+    //   ),
+    // },
+    // {
+    //   title: "Equipo",
+    //   url: "#",
+    //   icon: (
+    //     <UsersIcon
+    //     />
+    //   ),
+    // },
   ],
   navClouds: [
     {
@@ -143,32 +144,32 @@ const data = {
       ),
     },
   ],
-  documents: [
-    {
-      name: "Data Library",
-      url: "#",
-      icon: (
-        <DatabaseIcon
-        />
-      ),
-    },
-    {
-      name: "Reports",
-      url: "#",
-      icon: (
-        <FileChartColumnIcon
-        />
-      ),
-    },
-    {
-      name: "Word Assistant",
-      url: "#",
-      icon: (
-        <FileIcon
-        />
-      ),
-    },
-  ],
+  // documents: [
+  //   {
+  //     name: "Data Library",
+  //     url: "#",
+  //     icon: (
+  //       <DatabaseIcon
+  //       />
+  //     ),
+  //   },
+  //   {
+  //     name: "Reports",
+  //     url: "#",
+  //     icon: (
+  //       <FileChartColumnIcon
+  //       />
+  //     ),
+  //   },
+  //   {
+  //     name: "Word Assistant",
+  //     url: "#",
+  //     icon: (
+  //       <FileIcon
+  //       />
+  //     ),
+  //   },
+  // ],
 }
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
@@ -180,7 +181,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               className="data-[slot=sidebar-menu-button]:p-1.5!"
               render={<a href="/dashboard" />}
             >
-              <SparklesIcon className="size-5!" />
+              <MarvaIsotype size={40} />
               <span className="text-base font-semibold">Knowly</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -188,7 +189,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
+        {/* <NavDocuments items={data.documents} /> */}
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

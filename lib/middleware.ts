@@ -1,7 +1,23 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+import { getSupabaseEnv } from './supabase-config'
+
+const PUBLIC_PATHS = ['/auth', '/login']
+
+function isPublicPath(pathname: string) {
+  return PUBLIC_PATHS.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`)
+  )
+}
+
 export async function updateSession(request: NextRequest) {
+  const env = getSupabaseEnv()
+
+  if (!env) {
+    return NextResponse.next({ request })
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   })
@@ -9,8 +25,8 @@ export async function updateSession(request: NextRequest) {
   // With Fluid compute, don't put this client in a global environment
   // variable. Always create a new one on each request.
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    env.url,
+    env.key,
     {
       cookies: {
         getAll() {
@@ -38,7 +54,7 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims()
   const user = data?.claims
 
-  if (!user && !request.nextUrl.pathname.startsWith('/auth')) {
+  if (!user && !isPublicPath(request.nextUrl.pathname)) {
     // No session yet: send the user to the quick-login entry point.
     const url = request.nextUrl.clone()
     url.pathname = '/auth'
